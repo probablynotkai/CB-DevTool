@@ -7,6 +7,7 @@ Usage: cb <dir>
 ```
 ## Project Plans
 - Clean up code.
+- Project-based configuration.
 ## Tag usage
 ### Single Line Example
 ```ts

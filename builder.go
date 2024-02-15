@@ -193,7 +193,6 @@ func traverseDirectoriesAndRestore(path string) {
 
 			b, err := os.ReadFile(targetDir + "\\tmp\\" + filePath)
 			if err != nil {
-				log.Println("here?")
 				log.Fatal(err)
 				return
 			}

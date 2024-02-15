@@ -23,7 +23,7 @@ func traverseDirectories(path string) []string {
 
 	for _, v := range dir {
 		if v.IsDir() {
-			if v.Name() != "tmp" {
+			if v.Name() != "tmp" && v.Name() != "node_modules" && v.Name() != ".angular" && v.Name() != ".vscode" && v.Name() != ".idea" {
 				if path == "" {
 					traverseDirectories("\\" + v.Name() + "\\")
 				} else {
@@ -38,40 +38,45 @@ func traverseDirectories(path string) []string {
 				filePath = path + "\\" + v.Name()
 			}
 
-			b, err := os.ReadFile(filePath)
+			b, o := removeDevTags(targetDir + "\\" + filePath)
+			if b != nil {
+				log.Println(filePath)
+				duplicateIntoTmp(v.Name(), path, o)
+			}
+
+			err = os.WriteFile(targetDir+"\\"+filePath, b, os.ModePerm)
 			if err != nil {
 				log.Fatal(err)
-				return nil
 			}
-			duplicateIntoTmp(v.Name(), path, b)
-
-			b = removeDevTags(targetDir + "\\" + filePath)
 		}
 	}
 
 	return nil
 }
 
-func removeDevTags(path string) []byte {
+// mod, original
+func removeDevTags(path string) ([]byte, []byte) {
 	_, err := os.Stat(path)
 	if err != nil {
 		log.Fatal(err)
-		return nil
+		return nil, nil
 	}
 
 	b, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
-		return nil
+		return nil, nil
 	}
 
 	var finalLines string
 	var skipNext bool
+	flagFound := false
 
 	lines := strings.Split(string(b), "\n")
 	for _, v := range lines {
 		if strings.Contains(v, "// @DEV") {
 			skipNext = true
+			flagFound = true
 			continue
 		}
 
@@ -83,7 +88,11 @@ func removeDevTags(path string) []byte {
 		finalLines = finalLines + v + "\n"
 	}
 
-	return []byte(finalLines)
+	if flagFound {
+		return []byte(finalLines), b
+	} else {
+		return nil, b
+	}
 }
 
 func duplicateIntoTmp(fileName string, path string, data []byte) {
@@ -95,29 +104,13 @@ func duplicateIntoTmp(fileName string, path string, data []byte) {
 
 	_, err := os.Stat(tmpDir)
 	if err != nil {
-		os.Mkdir(tmpDir, os.ModeDir)
+		os.MkdirAll(tmpDir, os.ModeDir)
 	}
 
 	os.WriteFile(tmpDir+fileName, data, os.ModePerm)
 }
 
 func runBuild() {
-	_, err := os.Stat("tmp")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var existingFiles []string
-	d, err := os.ReadDir("tmp")
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	for _, f := range d {
-		existingFiles = append(existingFiles, f.Name())
-	}
-
 	var commands []string
 	commands = strings.Split(cb.Commands.Build, "&&")
 
@@ -131,7 +124,7 @@ func runBuild() {
 		cmd := exec.Command(k, v...)
 
 		var serr bytes.Buffer
-		cmd.Dir = targetDir + "\\tmp"
+		cmd.Dir = targetDir
 		cmd.Stderr = &serr
 
 		err := cmd.Run()
@@ -141,36 +134,9 @@ func runBuild() {
 		}
 	}
 
-	d, err = os.ReadDir("tmp")
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	var toExtract []os.DirEntry
-	for _, f := range d {
-		found := false
-
-		for _, e := range existingFiles {
-			if e == f.Name() {
-				found = true
-			}
-		}
-
-		if !found {
-			toExtract = append(toExtract, f)
-		}
-	}
-
-	for _, e := range toExtract {
-		b, err := os.ReadFile("tmp\\" + e.Name())
-		if err != nil {
-			log.Fatal(err)
-			return
-		}
-
-		os.WriteFile(targetDir+"\\"+e.Name(), b, os.ModePerm)
-	}
+	// Traverse tmp again
+	// Restore via WriteFile
+	// Remove tmp
 
 	os.Remove("tmp")
 }
@@ -179,3 +145,7 @@ func runBuild() {
 // check for any new directories in tmp dir, if exists, likely the dist directory
 // duplicate dist directory outside of tmp dir
 // delete tmp dir
+
+// IF file contains // @DEV then insert into TMP dir
+// AFTER build, restore files from TMP back into root dir
+// Best not to delete files, only update so dynamic in VSC

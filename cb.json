@@ -1,5 +1,5 @@
 {
     "commands": {
-        "build": "ng build"
+        "build": "ng build --configuration production"
     }
 }

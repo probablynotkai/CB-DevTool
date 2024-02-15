@@ -23,6 +23,7 @@ func main() {
 		return
 	}
 
+	log.Println("Loading configuration...")
 	cfgDir := exDir[:len(exDir)-6]
 
 	_, err = os.Stat(cfgDir + "cb.json")
@@ -43,8 +44,20 @@ func main() {
 		return
 	}
 
-	traverseDirectories("")
+	log.Println("Removing dev flags...")
+	traverseDirectoriesAndScan("")
+
+	log.Println("Building project...")
 	runBuild()
 
-	// Traverse dir, read all files, for each line, if line == // @DEV, skip next line in tmp build
+	log.Println("Restoring original files...")
+	traverseDirectoriesAndRestore("")
+
+	err = os.RemoveAll(targetDir + "\\tmp")
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	log.Println("Done!")
 }

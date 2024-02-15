@@ -8,26 +8,28 @@ import (
 	"strings"
 )
 
-func traverseDirectories(path string) []string {
+var ignoredDir = []string{"tmp", "node_modules", ".angular", ".vscode", ".idea", ".git"}
+
+func traverseDirectoriesAndScan(path string) {
 	_, err := os.Stat(targetDir + "\\" + path)
 	if err != nil {
 		log.Fatal(err)
-		return nil
+		return
 	}
 
 	dir, err := os.ReadDir(targetDir + "\\" + path)
 	if err != nil {
 		log.Fatal(err)
-		return nil
+		return
 	}
 
 	for _, v := range dir {
 		if v.IsDir() {
-			if v.Name() != "tmp" && v.Name() != "node_modules" && v.Name() != ".angular" && v.Name() != ".vscode" && v.Name() != ".idea" {
+			if !includes(ignoredDir, v.Name()) {
 				if path == "" {
-					traverseDirectories("\\" + v.Name() + "\\")
+					traverseDirectoriesAndScan("\\" + v.Name() + "\\")
 				} else {
-					traverseDirectories("\\" + path + "\\" + v.Name() + "\\")
+					traverseDirectoriesAndScan("\\" + path + "\\" + v.Name() + "\\")
 				}
 			}
 		} else {
@@ -40,21 +42,17 @@ func traverseDirectories(path string) []string {
 
 			b, o := removeDevTags(targetDir + "\\" + filePath)
 			if b != nil {
-				log.Println(filePath)
 				duplicateIntoTmp(v.Name(), path, o)
-			}
 
-			err = os.WriteFile(targetDir+"\\"+filePath, b, os.ModePerm)
-			if err != nil {
-				log.Fatal(err)
+				err = os.WriteFile(targetDir+"\\"+filePath, b, os.ModePerm)
+				if err != nil {
+					log.Fatal(err)
+				}
 			}
 		}
 	}
-
-	return nil
 }
 
-// mod, original
 func removeDevTags(path string) ([]byte, []byte) {
 	_, err := os.Stat(path)
 	if err != nil {
@@ -74,7 +72,7 @@ func removeDevTags(path string) ([]byte, []byte) {
 
 	lines := strings.Split(string(b), "\n")
 	for _, v := range lines {
-		if strings.Contains(v, "// @DEV") {
+		if strings.Contains(strings.ToUpper(v), "// @DEV") {
 			skipNext = true
 			flagFound = true
 			continue
@@ -111,34 +109,82 @@ func duplicateIntoTmp(fileName string, path string, data []byte) {
 }
 
 func runBuild() {
-	var commands []string
-	commands = strings.Split(cb.Commands.Build, "&&")
-
+	commands := strings.Split(cb.Commands.Build, "&&")
 	commandArgs := map[string][]string{}
+
 	for _, v := range commands {
 		args := strings.Split(v, " ")
 		commandArgs[args[0]] = args[1:]
 	}
 
 	for k, v := range commandArgs {
+		log.Printf("Executing command starting %s...\n", k)
 		cmd := exec.Command(k, v...)
 
 		var serr bytes.Buffer
 		cmd.Dir = targetDir
 		cmd.Stderr = &serr
 
-		err := cmd.Run()
+		b, err := cmd.Output()
 		if err != nil {
 			log.Fatal(serr.String())
 			return
 		}
+
+		log.Println(string(b))
+	}
+}
+
+func traverseDirectoriesAndRestore(path string) {
+	_, err := os.Stat(targetDir + "\\tmp\\" + path)
+	if err != nil {
+		log.Fatal(err)
+		return
 	}
 
-	// Traverse tmp again
-	// Restore via WriteFile
-	// Remove tmp
+	dir, err := os.ReadDir(targetDir + "\\tmp\\" + path)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
 
-	os.Remove("tmp")
+	for _, v := range dir {
+		if v.IsDir() {
+			if !includes(ignoredDir, v.Name()) {
+				if path == "" {
+					traverseDirectoriesAndRestore(v.Name() + "\\")
+				} else {
+					traverseDirectoriesAndRestore(path + "\\" + v.Name() + "\\")
+				}
+			}
+		} else {
+			var filePath string
+			if path == "" {
+				filePath = v.Name()
+			} else {
+				filePath = path + "\\" + v.Name()
+			}
+
+			b, err := os.ReadFile(targetDir + "\\tmp\\" + filePath)
+			if err != nil {
+				log.Println("here?")
+				log.Fatal(err)
+				return
+			}
+
+			log.Printf("Restored %s!\n", v.Name())
+			os.WriteFile(filePath, b, os.ModePerm)
+		}
+	}
+}
+
+func includes(arr []string, find string) bool {
+	for _, v := range arr {
+		if strings.EqualFold(v, find) {
+			return true
+		}
+	}
+	return false
 }
 
 // run Config.Build.Command in tmp dir MAKE SURE THAT COMMANDS ARE SPLIT BY &&

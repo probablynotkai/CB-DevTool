@@ -1,5 +1,7 @@
-# CB-DevTool [ NOT WORKING ]
+# CB-DevTool - **EXPERIMENTAL**
 A CLI tool which allows you to use a DEV annotation where the following line will not be included in the build.
+This is marked as experimental as this has only been tested against default Angular configurations. 
+Custom configurations or other frameworks such as React may require the project to be altered.
 ```powershell
 Usage: cb <dir>
 ```

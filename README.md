@@ -5,10 +5,10 @@ Custom configurations or other frameworks such as React may require the project 
 ```powershell
 Usage: cb <dir>
 ```
-## Coming soon
-- @START-DEV and @END-DEV to allow blocks to be excluded from the build.
+## Project Plans
+- Clean up code.
 ## Tag usage
-### Example
+### Single Line Example
 ```ts
 api = "https://myliveapi.com/api"
 
@@ -16,6 +16,17 @@ constructor() {
     // @DEV
     api = "http://127.0.0.1:8080/api"
 }
+```
+### Code Block Example
+```ts
+// @START-DEV - You can also add comments, by the way.
+function myFunc() {
+    let x = 5
+    let y = 4
+
+    console.log(x + y)
+}
+// @END-DEV
 ```
 ### Explanation
 In the snippet above, I have marked my development API URL with the @DEV tag. This indicates to the tool that 

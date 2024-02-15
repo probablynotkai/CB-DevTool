@@ -66,7 +66,7 @@ func removeDevTags(path string) ([]byte, []byte) {
 		return nil, nil
 	}
 
-	var finalLines string
+	var firstIter string
 	var skipNext bool
 	flagFound := false
 
@@ -80,6 +80,32 @@ func removeDevTags(path string) ([]byte, []byte) {
 
 		if skipNext {
 			skipNext = false
+			continue
+		}
+
+		firstIter = firstIter + v + "\n"
+	}
+
+	var finalLines string
+	devOpen := false
+	lines = strings.Split(firstIter, "\n")
+	for _, v := range lines {
+		if strings.Contains(strings.ToUpper(v), "// @START-DEV") {
+			devOpen = true
+			flagFound = true
+			continue
+		}
+
+		if strings.Contains(strings.ToUpper(v), "// @END-DEV") {
+			if !devOpen {
+				log.Println("[WARN] @END-DEV tag found but no opening tag.")
+			} else {
+				devOpen = false
+			}
+			continue
+		}
+
+		if devOpen {
 			continue
 		}
 

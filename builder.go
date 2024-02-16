@@ -11,13 +11,13 @@ import (
 var ignoredDir = []string{"tmp", "node_modules", ".angular", ".vscode", ".idea", ".git"}
 
 func traverseDirectoriesAndScan(path string) {
-	_, err := os.Stat(targetDir + "\\" + path)
+	_, err := os.Stat(".\\" + path)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
 
-	dir, err := os.ReadDir(targetDir + "\\" + path)
+	dir, err := os.ReadDir(".\\" + path)
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -40,11 +40,11 @@ func traverseDirectoriesAndScan(path string) {
 				filePath = path + "\\" + v.Name()
 			}
 
-			b, o := removeDevTags(targetDir + "\\" + filePath)
+			b, o := removeDevTags(".\\" + filePath)
 			if b != nil {
 				duplicateIntoTmp(v.Name(), path, o)
 
-				err = os.WriteFile(targetDir+"\\"+filePath, b, os.ModePerm)
+				err = os.WriteFile(".\\"+filePath, b, os.ModePerm)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -120,7 +120,7 @@ func removeDevTags(path string) ([]byte, []byte) {
 }
 
 func duplicateIntoTmp(fileName string, path string, data []byte) {
-	tmpDir := targetDir + "\\tmp\\"
+	tmpDir := ".\\tmp\\"
 
 	if path != "" {
 		tmpDir = tmpDir + path + "\\"
@@ -148,7 +148,7 @@ func runBuild() {
 		cmd := exec.Command(k, v...)
 
 		var serr bytes.Buffer
-		cmd.Dir = targetDir
+		cmd.Dir = ".\\"
 		cmd.Stderr = &serr
 
 		b, err := cmd.Output()
@@ -162,13 +162,13 @@ func runBuild() {
 }
 
 func traverseDirectoriesAndRestore(path string) {
-	_, err := os.Stat(targetDir + "\\tmp\\" + path)
+	_, err := os.Stat(".\\tmp\\" + path)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
 
-	dir, err := os.ReadDir(targetDir + "\\tmp\\" + path)
+	dir, err := os.ReadDir(".\\tmp\\" + path)
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -191,7 +191,7 @@ func traverseDirectoriesAndRestore(path string) {
 				filePath = path + "\\" + v.Name()
 			}
 
-			b, err := os.ReadFile(targetDir + "\\tmp\\" + filePath)
+			b, err := os.ReadFile(".\\tmp\\" + filePath)
 			if err != nil {
 				log.Fatal(err)
 				return

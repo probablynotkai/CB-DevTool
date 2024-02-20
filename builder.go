@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"log"
 	"os"
 	"os/exec"
@@ -98,7 +99,8 @@ func removeDevTags(path string) ([]byte, []byte) {
 
 		if strings.Contains(strings.ToUpper(v), "// @END-DEV") {
 			if !devOpen {
-				log.Println("[WARN] @END-DEV tag found but no opening tag.")
+				log.Fatal("@END-DEV tag found but no opening tag.")
+				return nil, nil
 			} else {
 				devOpen = false
 			}
@@ -110,6 +112,11 @@ func removeDevTags(path string) ([]byte, []byte) {
 		}
 
 		finalLines = finalLines + v + "\n"
+	}
+
+	if devOpen {
+		log.Fatal("@START-DEV tag found but no closing tag identified. Use @DEV for single line tags.")
+		return nil, nil
 	}
 
 	if flagFound {
@@ -153,7 +160,16 @@ func runBuild() {
 
 		b, err := cmd.Output()
 		if err != nil {
-			log.Fatal(serr.String())
+			log.Println(serr.String())
+			traverseDirectoriesAndRestore("")
+
+			err := os.RemoveAll(".\\tmp")
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
+
+			log.Fatal("An error has occurred while executing build command starting " + k + ", original files have been restored.")
 			return
 		}
 
@@ -164,6 +180,10 @@ func runBuild() {
 func traverseDirectoriesAndRestore(path string) {
 	_, err := os.Stat(".\\tmp\\" + path)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			log.Println("No files were restored as no tags were found.")
+			return
+		}
 		log.Fatal(err)
 		return
 	}
